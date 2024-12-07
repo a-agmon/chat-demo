@@ -1,16 +1,36 @@
-use leptos::{attr::target, logging::log, prelude::*};
+use leptos::{attr::target, logging::log, prelude::*, task::spawn_local};
+use leptos_use::whenever;
 
 fn main() {
     console_error_panic_hook::set_once();
-    leptos::mount::mount_to_body(MainView)
+    leptos::mount::mount_to_body(App)
+}
+
+use gloo_timers::future::TimeoutFuture;
+// this function sends the message to the backend and then adds it to the messages list when its returned
+async fn send_message(message: String) -> String {
+    // TimeoutFuture::new(1_000).await;
+    log!("Sending message: {}", message);
+    String::from("Here is the response")
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+struct Message {
+    text: String,
+    sender: String,
 }
 
 #[component]
-fn MainView() -> impl IntoView {
-    let (messages, set_messages) = signal(Messages::new());
-    set_messages.update(|collection| collection.push("yup".to_string()));
-    set_messages.write().push("Hello".to_string());
-    set_messages.write().push("World".to_string());
+fn App() -> impl IntoView {
+    let (messages, set_messages) = signal(Vec::<Message>::new());
+    set_messages.write().push(Message {
+        text: "Hello".to_string(),
+        sender: "me".to_string(),
+    });
+    set_messages.write().push(Message {
+        text: "World".to_string(),
+        sender: "me".to_string(),
+    });
 
     view! {
         <div class="max-w-md mx-auto bg-white rounded-lg shadow-md border border-gray-350">
@@ -39,16 +59,17 @@ fn Header() -> impl IntoView {
     }
 }
 
-type Messages = Vec<String>;
 #[component]
-fn ChatView(messages: ReadSignal<Messages>) -> impl IntoView {
+fn ChatView(messages: ReadSignal<Vec<Message>>) -> impl IntoView {
+
     view! {
+        <p>{move || messages.get().len()}</p>
         <For
             each=move || messages.get()
-            key=|state| state.clone()
+            key=|state| state.text.clone()
             let:child
         >
-            <UserMessage message=child/>
+            <UserMessage message=child.text/>
         </For>
     }
 }
@@ -67,55 +88,32 @@ fn UserMessage(message: String) -> impl IntoView {
         </div>
     }
 }
-#[component]
-fn App() -> impl IntoView {
-    let (count, set_count) = signal(0);
-    let double_count = move || count.get() * 2;
-    view! {
-        <button
-            on:click=move |_| *set_count.write() += 1
-            >
-            <b> Click me: </b>
-            {count} //
-        </button>
-        <p>
-            "Double count: "
-            {move || count.get() * 2}
-        </p>
-        <List/>
-
-    }
-}
 
 #[component]
-fn List() -> impl IntoView {
-    let values = vec![0, 1, 2];
-    view! {
-        // this will just render "012"
-        <br/>
-        <p>{values.clone()}</p>
-        // or we can wrap them in <li>
-        <ul>
-            {values.into_iter()
-                .map(|n| view! { <li>{n}</li>})
-                .collect_view()}
-        </ul>
-    }
-}
-
-#[component]
-fn Footer(messages: WriteSignal<Messages>) -> impl IntoView {
+fn Footer(messages: WriteSignal<Vec<Message>>) -> impl IntoView {
     let (user_input, set_user_input) = signal("".to_string());
+
     view! {
         <div class="px-4 py-3 bg-gray-50 border-t flex items-center space-x-3">
-            <input type="text" placeholder="Whats on your mind?" class="flex-grow text-sm bg-gray-100 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            <input type="text" placeholder="Whats on your mind?"
+            class="flex-grow text-sm bg-gray-100 border border-gray-300 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
             on:input:target=move |e| set_user_input.set(e.target().value())
             prop:value=user_input/>
 
             <button class="text-blue-500" on:click=move |_| {
+                messages.write().push(Message {
+                    text: user_input.get(),
+                    sender: "me".to_string(),
+                });
                 let input = user_input.get();
-                log!("Sending message: {}",input);
-                messages.write().push(input);
+                set_user_input.set(String::new());
+                spawn_local(async move {
+                    let response = send_message(input).await;
+                    messages.write().push(Message {
+                        text: response,
+                        sender: "bot".to_string(),
+                    });
+                });
             }>
                 <i class="fas fa-paper-plane"></i>
             </button>
