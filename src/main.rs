@@ -22,15 +22,15 @@ struct Message {
 
 #[component]
 fn App() -> impl IntoView {
-    let (messages, set_messages) = signal(Vec::<Message>::new());
-    set_messages.write().push(Message {
+    let (messages, set_messages) = signal(Vec::<ArcRwSignal<Message>>::new());
+    set_messages.write().push(ArcRwSignal::new(Message {
         text: "Hello".to_string(),
         sender: "me".to_string(),
-    });
-    set_messages.write().push(Message {
+    }));
+    set_messages.write().push(ArcRwSignal::new(Message {
         text: "World".to_string(),
         sender: "me".to_string(),
-    });
+    }));
 
     view! {
         <div class="max-w-md mx-auto bg-white rounded-lg shadow-md border border-gray-350">
@@ -60,16 +60,16 @@ fn Header() -> impl IntoView {
 }
 
 #[component]
-fn ChatView(messages: ReadSignal<Vec<Message>>) -> impl IntoView {
+fn ChatView(messages: ReadSignal<Vec<ArcRwSignal<Message>>>) -> impl IntoView {
 
     view! {
         <p>{move || messages.get().len()}</p>
         <For
             each=move || messages.get()
-            key=|state| state.text.clone()
-            let:child
+            key=|state| state.clone()
+            let:child 
         >
-            <UserMessage message=child.text/>
+            <UserMessage message=RwSignal::from(child).get().text/>
         </For>
     }
 }
@@ -90,7 +90,7 @@ fn UserMessage(message: String) -> impl IntoView {
 }
 
 #[component]
-fn Footer(messages: WriteSignal<Vec<Message>>) -> impl IntoView {
+fn Footer(messages: WriteSignal<Vec<ArcRwSignal<Message>>>) -> impl IntoView {
     let (user_input, set_user_input) = signal("".to_string());
 
     view! {
@@ -101,18 +101,20 @@ fn Footer(messages: WriteSignal<Vec<Message>>) -> impl IntoView {
             prop:value=user_input/>
 
             <button class="text-blue-500" on:click=move |_| {
-                messages.write().push(Message {
-                    text: user_input.get(),
-                    sender: "me".to_string(),
+                messages.update(|messages| {
+                    messages.push(ArcRwSignal::new(Message {
+                        text: user_input.get(),
+                        sender: "me".to_string(),
+                    }));
                 });
                 let input = user_input.get();
                 set_user_input.set(String::new());
                 spawn_local(async move {
                     let response = send_message(input).await;
-                    messages.write().push(Message {
+                    messages.write().push(ArcRwSignal::new(Message {
                         text: response,
                         sender: "bot".to_string(),
-                    });
+                    }));
                 });
             }>
                 <i class="fas fa-paper-plane"></i>
