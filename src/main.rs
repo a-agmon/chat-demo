@@ -1,23 +1,37 @@
-use leptos::{attr::target, logging::log, prelude::*, task::spawn_local};
-use leptos_use::whenever;
+mod llm_utils;
+
+use leptos::{logging::log, prelude::*, task::spawn_local};
+use llm_utils::LLMRequest;
+use reqwest::Client;
 
 fn main() {
     console_error_panic_hook::set_once();
     leptos::mount::mount_to_body(App)
 }
 
-use gloo_timers::future::TimeoutFuture;
-// this function sends the message to the backend and then adds it to the messages list when its returned
 async fn send_message(message: String) -> String {
-    // TimeoutFuture::new(1_000).await;
     log!("Sending message: {}", message);
-    String::from("Here is the response")
+    let client = Client::new();
+    let response = client
+        .post("http://localhost:3000/generate")
+        .header("Content-Type", "text/plain")
+        .body(message)
+        .send()
+        .await
+        .unwrap();
+    response.text().await.unwrap()
+}
+
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
+enum MessageSource {
+    User,
+    Bot,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 struct Message {
     text: String,
-    sender: String,
+    sender: MessageSource,
 }
 
 #[component]
@@ -25,20 +39,21 @@ fn App() -> impl IntoView {
     let (messages, set_messages) = signal(Vec::<ArcRwSignal<Message>>::new());
     set_messages.write().push(ArcRwSignal::new(Message {
         text: "Hello".to_string(),
-        sender: "me".to_string(),
-    }));
-    set_messages.write().push(ArcRwSignal::new(Message {
-        text: "World".to_string(),
-        sender: "me".to_string(),
+        sender: MessageSource::User,
     }));
 
     view! {
-        <div class="max-w-md mx-auto bg-white rounded-lg shadow-md border border-gray-350">
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-md border border-gray-350">
             <Header/>
              <div class="px-4 py-4 h-96 overflow-y-scroll">
                 <ChatView messages=messages/>
             </div>
             <Footer messages=set_messages/>
+
+        </div>
+
+         <div>
+            <input type="password"/>
         </div>
     }
 }
@@ -46,44 +61,47 @@ fn App() -> impl IntoView {
 #[component]
 fn Header() -> impl IntoView {
     view! {
-        <div class="flex items-center justify-between px-4 py-2 border-b">
-            <div class="flex items-center">
-                <span class="text-sm font-semibold text-gray-700">Soemthing</span>
-                <div class="w-px h-4 mx-2 bg-gray-400"></div>
-                <span class="text-sm text-gray-500">Soemthing</span>
-            </div>
-            <div>
-                <i class="fas fa-shield-alt text-green-500"></i>
-            </div>
-        </div>
-    }
+         <div class="flex items-center justify-start px-4 py-2 border-b">
+         <div>
+                 <img src="https://1000logos.net/wp-content/uploads/2023/11/Copilot-Logo-500x281.png" alt="Logo" class="h-8 w-15" />
+             </div>
+             <div class="flex items-center">
+                 <span class="text-sm font-semibold text-gray-700">Database Agent</span>
+                 <div class="w-px h-4 mx-2 bg-gray-400"></div>
+                 <span class="text-sm text-gray-500">Sustainability</span>
+             </div>
+         </div>
+     }
 }
 
 #[component]
 fn ChatView(messages: ReadSignal<Vec<ArcRwSignal<Message>>>) -> impl IntoView {
-
     view! {
-        <p>{move || messages.get().len()}</p>
         <For
             each=move || messages.get()
             key=|state| state.clone()
-            let:child 
+            let:child
         >
-            <UserMessage message=RwSignal::from(child).get().text/>
+            <UserMessage message=RwSignal::from(child)/>
         </For>
     }
 }
 
 #[component]
-fn UserMessage(message: String) -> impl IntoView {
+fn UserMessage(message: RwSignal<Message>) -> impl IntoView {
+    let message = message.read_only();
+    let message_text = message.get().text;
+    let is_bot = message.get().sender == MessageSource::Bot;
     view! {
         <div class="flex items-start mb-4">
-            <div class="w-8 h-8 bg-blue-500 rounded-full flex-shrink-0 text-white flex items-center justify-center">
-                <i class="fas fa-user"></i>
+            <div class="w-8 h-8 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full flex-shrink-0 text-white flex items-center justify-center">
+                <i class=move || if is_bot { "fas fa-robot" } else { "fas fa-user" }></i>
             </div>
             <div class="ml-3">
-                <p class="text-sm font-medium text-gray-700">You</p>
-                <p class="text-sm text-gray-600">{message}</p>
+                <p class="text-sm font-medium text-gray-700">{move || if is_bot { "Copilot" } else { "You" }}</p>
+                <p class="text-sm text-gray-600" inner_html={
+                    markdown::to_html(&message_text.trim_matches('"').replace("\\n", "\n"))
+                }/>
             </div>
         </div>
     }
@@ -104,7 +122,7 @@ fn Footer(messages: WriteSignal<Vec<ArcRwSignal<Message>>>) -> impl IntoView {
                 messages.update(|messages| {
                     messages.push(ArcRwSignal::new(Message {
                         text: user_input.get(),
-                        sender: "me".to_string(),
+                        sender: MessageSource::User,
                     }));
                 });
                 let input = user_input.get();
@@ -113,12 +131,13 @@ fn Footer(messages: WriteSignal<Vec<ArcRwSignal<Message>>>) -> impl IntoView {
                     let response = send_message(input).await;
                     messages.write().push(ArcRwSignal::new(Message {
                         text: response,
-                        sender: "bot".to_string(),
+                        sender: MessageSource::Bot,
                     }));
                 });
             }>
                 <i class="fas fa-paper-plane"></i>
             </button>
         </div>
+
     }
 }
