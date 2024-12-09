@@ -38,8 +38,8 @@ struct Message {
 fn App() -> impl IntoView {
     let (messages, set_messages) = signal(Vec::<ArcRwSignal<Message>>::new());
     set_messages.write().push(ArcRwSignal::new(Message {
-        text: "Hello".to_string(),
-        sender: MessageSource::User,
+        text: "Welcome! How can I help you?".to_string(),
+        sender: MessageSource::Bot,
     }));
 
     view! {
@@ -49,11 +49,6 @@ fn App() -> impl IntoView {
                 <ChatView messages=messages/>
             </div>
             <Footer messages=set_messages/>
-
-        </div>
-
-         <div>
-            <input type="password"/>
         </div>
     }
 }
@@ -68,7 +63,7 @@ fn Header() -> impl IntoView {
              <div class="flex items-center">
                  <span class="text-sm font-semibold text-gray-700">Database Agent</span>
                  <div class="w-px h-4 mx-2 bg-gray-400"></div>
-                 <span class="text-sm text-gray-500">Sustainability</span>
+                 <span class="text-sm text-gray-500">Retail</span>
              </div>
          </div>
      }
