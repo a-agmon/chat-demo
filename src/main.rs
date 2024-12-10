@@ -88,13 +88,13 @@ fn UserMessage(message: RwSignal<Message>) -> impl IntoView {
     let message_text = message.get().text;
     let is_bot = message.get().sender == MessageSource::Bot;
     view! {
-        <div class="flex items-start mb-4">
+        <div class="flex items-start mb-6 max-w-full">
             <div class="w-8 h-8 bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full flex-shrink-0 text-white flex items-center justify-center">
                 <i class=move || if is_bot { "fas fa-robot" } else { "fas fa-user" }></i>
             </div>
-            <div class="ml-3">
-                <p class="text-sm font-medium text-gray-700">{move || if is_bot { "Copilot" } else { "You" }}</p>
-                <p class="text-sm text-gray-600" inner_html={
+            <div class="ml-3 flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-700 mb-1">{move || if is_bot { "Copilot" } else { "You" }}</p>
+                <p class="text-sm text-gray-600 break-words whitespace-normal overflow-hidden text-ellipsis" inner_html={
                     markdown::to_html(&message_text.trim_matches('"').replace("\\n", "\n"))
                 }/>
             </div>
