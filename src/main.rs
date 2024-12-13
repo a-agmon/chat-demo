@@ -56,17 +56,17 @@ fn App() -> impl IntoView {
 #[component]
 fn Header() -> impl IntoView {
     view! {
-         <div class="flex items-center justify-start px-4 py-2 border-b">
-         <div>
-                 <img src="https://1000logos.net/wp-content/uploads/2023/11/Copilot-Logo-500x281.png" alt="Logo" class="h-8 w-15" />
-             </div>
-             <div class="flex items-center">
-                 <span class="text-sm font-semibold text-gray-700">Database Agent</span>
-                 <div class="w-px h-4 mx-2 bg-gray-400"></div>
-                 <span class="text-sm text-gray-500">Retail</span>
-             </div>
-         </div>
-     }
+        <div class="flex items-center justify-start px-4 py-2 border-b">
+        <div>
+                <img src="https://1000logos.net/wp-content/uploads/2023/11/Copilot-Logo-500x281.png" alt="Logo" class="h-8 w-15" />
+            </div>
+            <div class="flex items-center">
+                <span class="text-sm font-semibold text-gray-700">Database Agent</span>
+                <div class="w-px h-4 mx-2 bg-gray-400"></div>
+                <span class="text-sm text-gray-500">Retail</span>
+            </div>
+        </div>
+    }
 }
 
 #[component]
